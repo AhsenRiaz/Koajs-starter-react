@@ -1,57 +1,55 @@
 import * as Koa from "koa";
 import * as json from "koa-json";
-import * as Router from "koa-router";
+import * as Router from "koa-router"
 import * as bodyParser from "koa-bodyparser";
 import * as cors from "@koa/cors";
-import * as morgan from "morgan";
-import * as createErrors from "http-errors";
-require("dotenv").config();
-import { Context } from "koa";
+import * as jwt from "koa-jwt"
+const morgan = require('morgan')
+const fs = require('fs')
+const {login} = require("./controllers/login");
+const {logout} = require("./controllers/logout");
+const {refreshToken} = require("./controllers/refreshToken");
+const {register} = require("./controllers/register");
+const {verifyAccessToken} = require("./Helpers/jwt_helpers")
+require("./Helpers/init_mongodb")
 
-const port = process.env.PORT || 5000 ;
+require("dotenv").config();
+
+const port = process.env.PORT || 5000;
 const app = new Koa();
 const router = new Router();
 
-const things = [{ name: "Football" }, { name: "Cricket" }];
 // JSON PRETTIER MIDDLEWARE
 app.use(json());
 // BODY PARSER MIDDLEWARE
 app.use(bodyParser());
 // CORS POLIDY MIDDLEWARE
 app.use(cors());
-
-// SIMPLE MIDDLEWARE IF NO ROUTE IS DEFINED
-// app.use(async ctx => (ctx.body = {msg:"Hello world"} ));
-
-router.get("/", index);
-router.post("/add", add);
-
-async function index(ctx: Context) {
-  try {
-    ctx.response.body = {
-      message: "hello Response",
-    };
-  } catch (err) {
-    console.log(err);
-  }
-}
-
-// Add thing
-async function add(ctx: Context) {
-  try {
-    const task = await ctx.request.body.name;
-    things.push({ name: task });
-    ctx.response.body = {
-      data: things,
-    };
-  } catch (err) {
-    console.log(err);
-  }
-}
-
-// Get thing
-
-// ROUTER MIDDLEWARE
+// ROUTE MIDDLEWARE
 app.use(router.routes()).use(router.allowedMethods());
+// JWT MIDDLEWARE
+app.use(jwt({
+  secret : process.env.ACCESS_TOKEN_SECRET
+}).unless({
+  path:["/\/"]
+}))
 
-app.listen(port, () => console.log(`Server started on port ${port}`));
+router.get('/', async (ctx:Koa.Context) => {
+  console.log("getFunction",ctx.request.header.authorization)
+  ctx.response.body = {
+    temp : "success",
+  }
+})
+router.post("/auth/register", register);
+router.post("/auth/login", login);
+router.post("/auth/refresh-token" , refreshToken);
+router.delete("/auth/logout" , logout);
+
+
+app.listen(port, () =>
+  console.log(`Server started on port ${port}`)
+);
+
+module.exports = {
+    router
+}
